@@ -1,3 +1,12 @@
+---
+title: STM32 环境感知与执行控制终端项目概览
+project: STM32 环境感知与执行控制终端
+system_layer: 设备层 / 终端节点
+document_type: project_overview
+status: in_progress
+last_updated: 2026-06-30
+tags: [STM32F411, STM32F407VET6, FreeRTOS, OLED, ESP8266, EdgeAIoT]
+---
 # STM32 环境感知与执行控制终端
 
 ## 项目定位
@@ -10,16 +19,16 @@ V1：NUCLEO-F411RE Functional Prototype
 状态：基本完成
 功能：ESP8266联网同步天气和时间，温度湿度等传感器上传在OLED显示环境数据，OLED按键长按短按切换模式以及页面
 V2：STM32F407VET6 Core Board Modular Refactor
-状态：计划重构后续将使用 STM32F407VET6 核心板和面包板，从零重写主要模块，而不是直接复制 V1 代码。
+状态：已启动重构；2026 年 6 月 30 日完成 Day 1 核心硬件验证，已通过Type-C 供电和 ST-LINK SWD 下载实现 PA1 板载 D2 LED 闪烁。后续将使用 STM32F407VET6 核心板和面包板，从零重写主要模块，而不是直接复制 V1 代码。
 功能：保持V1版本功能实践的基础上增加语音识别功能，蜂鸣器报警功能，接收 Linux 网关经 UART 下发的控制命令，实现电机等执行器控制。
 ## 主要硬件与外设
 ### V1：NUCLEO-F411RE Functional Prototype
 已接入并验证：NUCLEO-F411RE OLED ESP8266 按键 光敏传感器 板载指示灯 使用模拟数据或逻辑验证：气体浓度与报警判断逻辑
 已预留但尚未完成真实硬件验证：蜂鸣器 语音模块 部分环境传感器
 ### V2：STM32F407VET6 Core Board Modular Refactor
-当前状态：规划和准备阶段，后续使用 STM32F407VET6 核心板与面包板从零重构。
+当前状态：已启动重构；2026 年 6 月 30 日完成 Day 1 核心硬件验证，已通过Type-C 供电和 ST-LINK SWD 下载实现 PA1 板载 D2 LED 闪烁。
 ## 主要功能
-实现UART串口通信上传温度湿度等环境数据，ESP8266联网同步时间以及获取天气，网络请求失败时保留上一次有效天气数据，并在 OLED 上标记为旧数据，天气数据按照设定周期更新，当前更新周期为 10 分钟。
+通过 UART 上传环境数据与设备状态；当前已真实验证光敏 ADC 采集，气体浓度及其报警判断使用模拟数据完成逻辑验证，其他环境传感器将根据后续实际接入状态持续补充。ESP8266联网同步时间以及获取天气，网络请求失败时保留上一次有效天气数据，并在 OLED 上标记为旧数据，天气数据按照设定周期更新，当前更新周期为 10 分钟。
 ## 输入与输出
 输入：
 传感器采集数据 按键操作 Linux 网关下发的 UART 控制命令 ESP8266 获取的时间与天气响应 后续预留的语音模块输入
