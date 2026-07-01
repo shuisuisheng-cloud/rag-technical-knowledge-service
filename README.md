@@ -81,8 +81,9 @@ V1 计划实现：
 * [x] 编写首批 EdgeAIoT 项目概览文档
 * [x] 建立 Overview 与每日详细记录两类文档
 * [x] 为知识文档增加 Metadata
-* [ ] 建立统一 Document 数据结构
-* [ ] 实现 Markdown 文档读取
+* [x] 建立基础 Document 数据结构
+* [x] 实现单个 Markdown 文档读取
+* [x] 完成文件不存在时的基础异常检查
 * [ ] 实现文本切分
 * [ ] 实现 Embedding 向量化
 * [ ] 接入 ChromaDB
