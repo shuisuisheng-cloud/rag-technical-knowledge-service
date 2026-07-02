@@ -7,7 +7,7 @@ document_type: algorithm_learning_note
 status: sample_verified
 last_updated: 2026-06-30
 tags: [Python, 数组, 哈希表, ACM输入输出, 两数之和]
---------------------------------------
+---
 
 # LeetCode Day 5 两数之和
 

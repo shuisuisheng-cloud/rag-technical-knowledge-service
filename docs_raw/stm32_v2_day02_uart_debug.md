@@ -7,7 +7,7 @@ document_type: hardware_validation
 status: verified
 last_updated: 2026-07-01
 tags: [STM32F407VET6, UART, PA2, PA3, ST-LINK, SWD, USB-TTL]
---------------------------------------------------
+---
 # STM32F407VET6 V2 Day 2 USART2 调试串口
 
 ## 今日目标

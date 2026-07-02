@@ -19,3 +19,14 @@ def load_markdown(file_path: str) -> dict:
     }
     return document
     # 第五步：return 结果
+def load_markdown_directory(directory_path: str) -> list[dict]:
+    directory=Path(directory_path)
+    if not directory.exists():
+        raise FileNotFoundError(f"目录不存在:{directory}")
+    if not directory.is_dir():
+        raise NotADirectoryError(f"路径不是目录:{directory}")
+    documents=[]
+    for md_flie in sorted(directory.glob("*.md")):
+        document=load_markdown(str(md_flie))
+        documents.append(document)
+    return documents

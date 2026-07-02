@@ -7,7 +7,7 @@ document_type: software_module_record
 status: software_verified
 last_updated: 2026-07-01
 tags: [Linux, Python, MQTT, JSON, ACK, command_handler, EdgeAIoT]
------------------------------------------------------------------
+---
 
 # Linux-STM32 物联网边缘网关 Day 47 控制命令 ACK
 

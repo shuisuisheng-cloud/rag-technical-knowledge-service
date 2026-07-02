@@ -7,7 +7,7 @@ document_type: hardware_validation
 status: verified
 last_updated: 2026-06-30
 tags: [STM32F407VET6, GPIO, PA1, D2, ST-LINK, SWD]
---------------------------------------------------
+---
 
 # STM32F407VET6 V2 Day 1 核心硬件验证
 

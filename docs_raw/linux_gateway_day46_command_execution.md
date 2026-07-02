@@ -7,7 +7,7 @@ document_type: software_module_record
 status: software_verified
 last_updated: 2026-06-30
 tags: [Linux, Python, MQTT, JSON, command_handler, command_execution]
----------------------------------------------------------------------
+---
 
 # Linux-STM32 物联网边缘网关 Day 46 控制命令执行
 

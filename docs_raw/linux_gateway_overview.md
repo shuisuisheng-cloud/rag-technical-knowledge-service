@@ -4,7 +4,7 @@ project: Linux-STM32 物联网边缘网关
 system_layer: 通信层 / 数据中枢
 document_type: project_overview
 status: in_progress
-last_updated: 2026-06-30
+last_updated: 2026-07-02
 tags: [Linux, STM32, UART, MQTT, JSON, Python, EdgeAIoT]
 ---
 # Linux-STM32 物联网边缘网关
@@ -24,7 +24,7 @@ Orange Pi / MQTT → Linux 网关 → UART → STM32 终端。
 已经围绕 Linux 命令、Python 项目结构、串口读取、配置文件、日志记录、JSON 数据和 MQTT 通信等内容进行开发与学习。
 部分模块已经完成基础代码和测试，但模块调用关系、异常处理流程、Linux 操作命令和核心代码仍需要继续理解、复习和验证。
 截至 2026 年 6 月 30 日推进至 Day 46，已完成 MQTT 控制消息解析和软件命令执行链，支持 led_on、led_off 和未知命令处理。
-当前执行结果仍为 Linux 用户态模拟输出，尚未通过 UART 控制真实 STM32 硬件。
+当前执行结果仍为 Linux 用户态模拟输出，尚未通过 UART 控制真实 STM32 硬件。截至 Day 48，网关主程序已支持常驻运行，并通过 KeyboardInterrupt 和 finally 完成 MQTT 连接清理与安全退出。当前仍为 Linux 用户态软件链路，尚未接入真实 STM32 UART。
 ## 主要功能
 当前已经学习或初步实现的功能：
 * 从配置文件读取串口、MQTT topic 和阈值等参数；

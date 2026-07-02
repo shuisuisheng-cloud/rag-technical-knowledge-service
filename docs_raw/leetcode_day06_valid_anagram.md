@@ -7,7 +7,7 @@ document_type: algorithm_learning_note
 status: sample_verified
 last_updated: 2026-07-01
 tags: [Python, 字符串, 哈希表, 字符计数, ACM输入输出]
----------------------------------------
+---
 
 # LeetCode Day 6 有效的字母异位词
 
