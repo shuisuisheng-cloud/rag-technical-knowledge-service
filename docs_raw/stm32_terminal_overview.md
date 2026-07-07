@@ -19,7 +19,7 @@ V1：NUCLEO-F411RE Functional Prototype
 状态：基本完成
 功能：ESP8266联网同步天气和时间，温度湿度等传感器上传在OLED显示环境数据，OLED按键长按短按切换模式以及页面
 V2：STM32F407VET6 Core Board Modular Refactor
-状态：已启动重构；2026 年 6 月 30 日完成 Day 1 核心硬件验证，已通过Type-C 供电和 ST-LINK SWD 下载实现 PA1 板载 D2 LED 闪烁。后续将使用 STM32F407VET6 核心板和面包板，从零重写主要模块，而不是直接复制 V1 代码。2026 年 7 月 2 日新增 User/Board/board_config.h 板级配置层，将 CubeMX 生成的具体 GPIO 和 UART 符号映射为项目统一名称，降低业务代码对具体板卡引脚命名的依赖。
+状态：已启动重构；2026 年 6 月 30 日完成 Day 1 核心硬件验证，已通过Type-C 供电和 ST-LINK SWD 下载实现 PA1 板载 D2 LED 闪烁。后续将使用 STM32F407VET6 核心板和面包板，从零重写主要模块，而不是直接复制 V1 代码。2026 年 7 月 2 日新增 User/Board/board_config.h 板级配置层，将 CubeMX 生成的具体 GPIO 和 UART 符号映射为项目统一名称，降低业务代码对具体板卡引脚命名的依赖。2026 年 7 月 3 日完成板载 S1（PA0）按键输入验证，实现当前状态与稳定状态比较、20 ms 二次确认的软件消抖、按下/释放事件日志，并在确认按下后翻转板载 D2。
 功能：保持V1版本功能实践的基础上增加语音识别功能，蜂鸣器报警功能，接收 Linux 网关经 UART 下发的控制命令，实现电机等执行器控制。
 ## 主要硬件与外设
 ### V1：NUCLEO-F411RE Functional Prototype
