@@ -85,6 +85,10 @@ V1 计划实现：
 * [x] 实现单个 Markdown 文档读取
 * [x] 实现目录内 Markdown 文档批量读取
 * [x] 完成目录不存在和路径非目录的异常检查
+- [x] 解析 Markdown YAML Metadata
+- [x] 分离 YAML Front Matter 与正文
+- [x] 保存文档标题、项目、类型和验证状态
+- [x] 使用 requirements.txt 记录 Python 依赖
 * [ ] 实现文本切分
 * [ ] 实现 Embedding 向量化
 * [ ] 接入 ChromaDB
