@@ -89,6 +89,12 @@ V1 计划实现：
 - [x] 分离 YAML Front Matter 与正文
 - [x] 保存文档标题、项目、类型和验证状态
 - [x] 使用 requirements.txt 记录 Python 依赖
+- [x] 校验 Metadata 根结构是否为字典
+- [x] 校验 Metadata 必需字段
+- [x] 校验文档 status
+- [x] 校验 tags 字段类型
+- [x] 为校验失败信息增加文档来源
+- [x] 编写 Metadata 独立测试脚本
 * [ ] 实现文本切分
 * [ ] 实现 Embedding 向量化
 * [ ] 接入 ChromaDB

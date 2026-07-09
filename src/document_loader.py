@@ -3,15 +3,14 @@ from pathlib import Path
 
 
 def load_markdown(file_path: str) -> dict:
-    # 第一步：把字符串路径转换为 Path 对象
     file=Path(file_path)
-    # 第二步：检查路径是否存在
     if not file.exists():
         raise FileNotFoundError(f"文件不存在：{file}")
-    # 第三步：按 UTF-8 读取正文
     text=file.read_text(encoding="utf-8")
     content, parsed_metadata = parse_markdown_content(text)
-    # 第四步：组织 content 和 metadata
+    parsed_metadata = validate_metadata(
+    parsed_metadata,
+    str(file),)
     parsed_metadata["source"] = str(file)
     parsed_metadata["file_type"] = "markdown"
     document = {
@@ -19,7 +18,6 @@ def load_markdown(file_path: str) -> dict:
     "metadata": parsed_metadata
     }
     return document
-    # 第五步：return 结果
 def load_markdown_directory(directory_path: str) -> list[dict]:
     directory=Path(directory_path)
     if not directory.exists():
@@ -32,7 +30,7 @@ def load_markdown_directory(directory_path: str) -> list[dict]:
         documents.append(document)
     return documents
 
-def parse_markdown_content(raw_text: str) -> tuple[str, dict]:
+def parse_markdown_content(raw_text: str) -> tuple[str, object]:
     if raw_text.startswith("---"):
         parts=raw_text.split("---",2)
         if len(parts) ==3:
@@ -44,3 +42,21 @@ def parse_markdown_content(raw_text: str) -> tuple[str, dict]:
             raise ValueError(f"文档Meatdata格式不完整:{raw_text}")
     else:
         return raw_text, {}
+
+def validate_metadata(metadata: object, source: str) -> dict:
+    if not isinstance(metadata, dict):
+        raise TypeError(f"metadata不是字典:{source},实际类型为{type(metadata).__name__}")
+    required_fields = ["title","project","system_layer","document_type","status","last_updated","tags"]
+    allowed_status = {"in_progress","completed","verified","software_verified","sample_verified"}
+
+    for field in required_fields:
+        if field not in metadata:
+            raise ValueError( f"Metadata缺少必需字段: source={source}, field={field}")
+    if metadata["status"] not in allowed_status:
+        raise ValueError(f"Metadata状态非法: source={source}, "
+            f"status={metadata['status']}")
+    if not isinstance(metadata["tags"], list):
+        raise TypeError(f"Metadata字段类型错误: source={source}, "
+            f"field=tags, expected=list, "
+            f"actual={type(metadata['tags']).__name__}")
+    return metadata
