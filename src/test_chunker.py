@@ -1,4 +1,4 @@
-from text_chunker import split_document
+from text_chunker import split_document,split_documents
 from document_loader import load_markdown
 document = {
     "content": "abcdefghij",
@@ -99,3 +99,61 @@ assert [
     chunk["metadata"]["chunk_index"]
     for chunk in real_chunks
 ] == list(range(len(real_chunks)))
+
+documents = [
+    {
+        "content": "abcdefghij",
+        "metadata": {
+            "title": "文档 A",
+            "source": "a.md",
+        },
+    },
+    {
+        "content": "12345",
+        "metadata": {
+            "title": "文档 B",
+            "source": "b.md",
+        },
+    },
+]
+batch_chunks = split_documents(
+    documents,
+    chunk_size=6,
+    chunk_overlap=2,
+)
+assert len(batch_chunks) == 3
+assert isinstance(batch_chunks[0], dict)
+assert [
+    chunk["content"]
+    for chunk in batch_chunks
+] == [
+    "abcdef",
+    "efghij",
+    "12345",
+]
+assert [
+    chunk["metadata"]["source"]
+    for chunk in batch_chunks
+] == [
+    "a.md",
+    "a.md",
+    "b.md",
+]
+assert [
+    chunk["metadata"]["chunk_index"]
+    for chunk in batch_chunks
+] == [
+    0,
+    1,
+    0,
+]
+assert "chunk_index" not in documents[0]["metadata"]
+assert "chunk_index" not in documents[1]["metadata"]
+empty_batch_chunks = split_documents(
+    [],
+    chunk_size=6,
+    chunk_overlap=2,
+)
+
+assert empty_batch_chunks == []
+print("所有批量文本切分测试通过")

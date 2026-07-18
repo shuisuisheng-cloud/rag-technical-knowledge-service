@@ -26,3 +26,9 @@ def split_document(document: dict,chunk_size: int,chunk_overlap: int,) -> list[d
             start += step
             chunk_index += 1
     return chunks
+def split_documents(documents: list[dict],chunk_size: int,chunk_overlap: int,) -> list[dict]:
+    all_chunks=[]
+    for document in documents:
+        document_chunks=split_document(document,chunk_size,chunk_overlap)
+        all_chunks.extend(document_chunks)
+    return all_chunks
