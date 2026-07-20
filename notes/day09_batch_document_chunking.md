@@ -12,48 +12,123 @@ tags: [Python, RAG, Chunking, BatchProcessing, Metadata, Testing]
 
 ## 今日目标
 
-1. Day 8 的 `split_document()` 一次能处理什么数据？
-2. 目录加载器返回的数据结构是什么？
-3. 为什么还需要新增 `split_documents()`？
-4. Day 9 最终希望得到什么结果？
+Day 8 已经实现：
 
-## Day 8 回顾
+```text
+一个 Document
+→ split_document()
+→ 多个 Chunk
+```
 
-### Document 结构
+Day 9 需要实现：
 
-请写出一个完整 Document 的结构：
+```text
+多个 Documents
+→ split_documents()
+→ 汇总后的全部 Chunks
+```
+
+今天完成：
+
+- 实现 `split_documents()`；
+- 复用已有的 `split_document()`；
+- 使用 `extend()` 合并各文档的 Chunk；
+- 保持返回结果为扁平列表；
+- 验证每篇文档的 `chunk_index` 独立编号；
+- 验证原始 Metadata 不会被修改；
+- 增加空列表测试；
+- 完成批量切分测试。
+
+## Document 结构
+
+一个 Document 的结构：
 
 ```python
 document = {
-    # 待填写
+    "content": "完整 Markdown 正文",
+    "metadata": {
+        "title": "文档标题",
+        "project": "所属项目",
+        "system_layer": "系统层级",
+        "document_type": "文档类型",
+        "status": "completed",
+        "last_updated": "2026-07-18",
+        "tags": ["Python", "RAG"],
+        "source": "docs_raw/example.md",
+        "file_type": "markdown",
+    },
 }
 ```
 
-回答：
+Document 最外层只有两个核心字段：
 
-1. Document 最外层有哪些字段？
-2. `source` 和 `file_type` 位于哪一层？
-3. `content` 的类型是什么？
-4. `metadata` 的类型是什么？
+```text
+content
+metadata
+```
 
-### Chunk 结构
+其中：
 
-请写出一个完整 Chunk 的结构：
+```text
+content
+→ 字符串
+→ 保存完整正文
+
+metadata
+→ 字典
+→ 保存标题、来源、状态、标签等结构化信息
+```
+
+`source` 和 `file_type` 位于：
+
+```python
+document["metadata"]
+```
+
+而不是 Document 最外层。
+
+## Chunk 结构
+
+一个 Chunk 的结构：
 
 ```python
 chunk = {
-    # 待填写
+    "content": "切分后的正文片段",
+    "metadata": {
+        "title": "文档标题",
+        "source": "docs_raw/example.md",
+        "file_type": "markdown",
+        "chunk_index": 0,
+    },
 }
 ```
 
-回答：
+Document 与 Chunk 都包含：
 
-1. Chunk 与 Document 的共同字段有哪些？
-2. Chunk 的正文和原始 Document 正文有什么区别？
-3. Chunk Metadata 中新增了哪个字段？
-4. 这个字段表达什么含义？
+```text
+content
+metadata
+```
 
-## split_document() 回顾
+区别是：
+
+```text
+Document content
+→ 一篇文档的完整正文
+
+Chunk content
+→ 从完整正文中切分出的一个片段
+```
+
+每个 Chunk 的 Metadata 在继承原文 Metadata 的基础上新增：
+
+```text
+chunk_index
+```
+
+它表示当前 Chunk 在所属原文中的顺序。
+
+## Day 8：split_document()
 
 函数接口：
 
@@ -66,48 +141,144 @@ def split_document(
     ...
 ```
 
-回答：
-
-1. `chunk_size` 表示什么？
-2. `chunk_overlap` 表示什么？
-3. 为什么必须满足：
+职责：
 
 ```text
-chunk_overlap < chunk_size
+接收一个已经加载完成的 Document
+→ 切分 document["content"]
+→ 为每个文本块复制 Metadata
+→ 增加 chunk_index
+→ 返回这篇文档的 Chunk 列表
 ```
 
-4. 为什么步长为：
+`split_document()` 不负责读取 Markdown 文件。
+
+Markdown 文件读取属于 Loader。
+
+## 切分参数
+
+### chunk_size
+
+表示每个 Chunk 最多包含的字符数量。
+
+### chunk_overlap
+
+表示相邻两个 Chunk 之间重复的字符数量。
+
+### step
+
+步长计算：
 
 ```python
 step = chunk_size - chunk_overlap
 ```
 
-5. `start` 表示什么？
-6. `end` 表示什么？
-7. `chunk_index` 表示什么？
-8. 为什么需要：
+例如：
 
-```python
-end = min(start + chunk_size, len(content))
+```text
+chunk_size = 8
+chunk_overlap = 2
+step = 6
 ```
 
-9. Python 字符串切片的左闭右开规则是什么？
-10. 为什么每个 Chunk 要使用：
+每次窗口向后移动 6 个字符，因此相邻 Chunk 会保留 2 个重叠字符。
+
+必须满足：
+
+```text
+chunk_overlap < chunk_size
+```
+
+否则：
+
+```text
+step <= 0
+```
+
+窗口无法正常向后移动，可能造成死循环。
+
+## start、end 和 chunk_index
+
+```text
+start
+→ 当前 Chunk 在原文中的起始下标
+
+end
+→ 当前 Chunk 的结束边界
+
+chunk_index
+→ 当前 Chunk 在所属文档中的顺序编号
+```
+
+结束边界：
+
+```python
+end = min(
+    start + chunk_size,
+    len(content),
+)
+```
+
+`min()` 的作用是：
+
+- 将 `end` 限制在真实正文长度以内；
+- 普通 Chunk 的 `end` 保持为 `start + chunk_size`；
+- 最后一个 Chunk 的 `end` 被限制为 `len(content)`；
+- 方便通过 `end == len(content)` 判断已经到达正文结尾。
+
+它不是为了防止 Python 切片越界报错。
+
+Python 字符串切片超过末尾通常不会抛出异常。
+
+## Metadata 复制
+
+每个 Chunk 使用：
 
 ```python
 chunk_metadata = metadata.copy()
 ```
 
-11. 不使用 `copy()` 会出现什么问题？
-12. 当：
+不能直接写：
+
+```python
+chunk_metadata = metadata
+```
+
+直接赋值只会让两个变量指向同一个字典对象。
+
+如果所有 Chunk 共用同一个 Metadata：
+
+```python
+chunk_metadata["chunk_index"] = chunk_index
+```
+
+后一次修改可能覆盖前面 Chunk 的编号，还可能修改原始 Document。
+
+使用 `copy()` 后，每个 Chunk 都获得独立的外层 Metadata 字典。
+
+当前使用的是浅拷贝，但 Day 9 只修改顶层的 `chunk_index`，因此足够。
+
+## 为什么最后需要 break
+
+当：
 
 ```python
 end == len(content)
 ```
 
-时，为什么要执行 `break`？
+说明当前 Chunk 已经覆盖正文末尾。
 
-## Day 9 核心函数
+此时必须：
+
+```python
+break
+```
+
+由于存在 `chunk_overlap`，最后一个 Chunk 生成后，`start` 仍可能小于正文长度。
+
+如果继续循环，可能产生一个很短、并且与上一块高度重复的无用尾部 Chunk。
+
+## Day 9：split_documents()
 
 函数接口：
 
@@ -120,90 +291,124 @@ def split_documents(
     ...
 ```
 
-## 输入结构
+职责：
 
-请写出 `documents` 的结构：
+```text
+接收 Documents 列表
+→ 遍历每一个 Document
+→ 调用 split_document()
+→ 得到当前文档的 Chunk 列表
+→ 合并到总 Chunk 列表
+→ 返回全部 Chunk
+```
+
+最终实现：
+
+```python
+def split_documents(
+    documents: list[dict],
+    chunk_size: int,
+    chunk_overlap: int,
+) -> list[dict]:
+    all_chunks = []
+
+    for document in documents:
+        document_chunks = split_document(
+            document,
+            chunk_size,
+            chunk_overlap,
+        )
+        all_chunks.extend(document_chunks)
+
+    return all_chunks
+```
+
+## 变量职责
+
+### documents
+
+```text
+类型：list[dict]
+```
+
+表示多个 Document 组成的列表：
 
 ```python
 documents = [
-    # 待填写第一个 Document
-
-    # 待填写第二个 Document
+    document_1,
+    document_2,
+    document_3,
 ]
 ```
-
-回答：
-
-1. `documents` 本身是什么类型？
-2. `documents` 中每个元素是什么类型？
-3. 每个元素内部包含哪些核心字段？
-
-## 输出结构
-
-请写出 `split_documents()` 的返回结构：
-
-```python
-all_chunks = [
-    # 待填写
-]
-```
-
-回答：
-
-1. 返回值为什么必须是扁平列表？
-2. 返回值中的每个元素是什么类型？
-3. 不同原文产生的 Chunk 如何区分？
-4. 同一原文内部的 Chunk 如何表示顺序？
-
-## split_documents() 数据流
-
-补全下面的数据流：
-
-```text
-Documents 列表
-→ 遍历 __________________
-→ 调用 __________________
-→ 得到当前文档的 __________________
-→ 合并到 __________________
-→ 返回 __________________
-```
-
-## 函数职责
-
-### all_chunks
-
-回答：
-
-1. `all_chunks` 的初始值是什么？
-2. 它保存什么数据？
-3. 为什么要在循环外创建？
-4. 最终返回的对象是不是它？
 
 ### document
 
-回答：
+```text
+类型：dict
+```
 
-1. `for document in documents` 中的 `document` 表示什么？
-2. 每轮循环处理几篇原文？
-3. 循环顺序是否会影响最终 Chunk 顺序？
+表示当前循环正在处理的一篇 Document。
 
 ### document_chunks
 
-回答：
+```text
+类型：list[dict]
+```
 
-1. `document_chunks` 保存什么？
-2. 它由哪个函数返回？
-3. 它的类型是什么？
-4. 每次循环的 `document_chunks` 是否属于同一篇原文？
+表示当前一篇 Document 经过 `split_document()` 后产生的 Chunk 列表。
 
-## 为什么必须复用 split_document()
+### all_chunks
 
-回答：
+```text
+类型：list[dict]
+```
 
-1. `split_documents()` 是否应该重新实现滑动窗口？
-2. 如果复制一遍切分逻辑，会带来哪些维护问题？
-3. 参数校验应该继续由哪个函数负责？
-4. 单文档切分规则修改后，批量函数是否应该自动继承修改？
+表示所有文档产生的 Chunk 汇总后的扁平列表。
+
+结构：
+
+```python
+all_chunks = [
+    chunk_a_0,
+    chunk_a_1,
+    chunk_b_0,
+]
+```
+
+不是：
+
+```python
+all_chunks = [
+    [chunk_a_0, chunk_a_1],
+    [chunk_b_0],
+]
+```
+
+## 为什么复用 split_document()
+
+`split_documents()` 不重新实现滑动窗口，而是复用：
+
+```python
+split_document()
+```
+
+原因：
+
+- 避免重复代码；
+- 单文档和批量切分保持相同规则；
+- 参数校验只维护一份；
+- 修复单文档切分逻辑后，批量函数自动继承修改；
+- 更容易测试和维护。
+
+职责划分：
+
+```text
+split_document()
+→ 负责一篇 Document 的具体切分
+
+split_documents()
+→ 负责批量遍历和汇总
+```
 
 ## append() 与 extend()
 
@@ -216,9 +421,7 @@ document_chunks = [
 ]
 ```
 
-分别写出以下操作的结果结构。
-
-### append()
+### 使用 append()
 
 ```python
 all_chunks.append(document_chunks)
@@ -228,17 +431,29 @@ all_chunks.append(document_chunks)
 
 ```python
 all_chunks = [
-    # 待填写
+    [
+        chunk_1,
+        chunk_2,
+    ],
 ]
 ```
 
-回答：
+此时：
 
-1. 使用 `append()` 后会不会出现嵌套列表？
-2. 此时 `all_chunks[0]` 是字典还是列表？
-3. 返回类型更接近 `list[dict]` 还是 `list[list[dict]]`？
+```text
+all_chunks[0]
+→ list
+```
 
-### extend()
+返回结构为：
+
+```text
+list[list[dict]]
+```
+
+这是嵌套列表。
+
+### 使用 extend()
 
 ```python
 all_chunks.extend(document_chunks)
@@ -248,67 +463,158 @@ all_chunks.extend(document_chunks)
 
 ```python
 all_chunks = [
-    # 待填写
+    chunk_1,
+    chunk_2,
 ]
 ```
 
-回答：
+此时：
 
-1. `extend()` 会把什么内容逐个加入总列表？
-2. 此时 `all_chunks[0]` 是什么类型？
-3. 为什么本项目应该使用 `extend()`？
+```text
+all_chunks[0]
+→ dict
+```
+
+返回结构为：
+
+```text
+list[dict]
+```
+
+本项目需要扁平的 Chunk 列表，因此必须使用：
+
+```python
+extend()
+```
 
 ## 空列表处理
 
-当前函数没有专门写：
+函数不需要专门写：
 
 ```python
 if documents == []:
     return []
 ```
 
-回答：
+因为当：
 
-1. 当 `documents` 为空列表时，`for` 循环执行几次？
-2. `all_chunks` 最终保持什么值？
-3. 函数会自然返回什么？
-4. 为什么不一定需要额外的 `if/else`？
-
-## chunk_index 的范围
-
-假设：
-
-```text
-文档 A 切出 2 个 Chunk
-文档 B 切出 2 个 Chunk
+```python
+documents = []
 ```
 
-请填写最终编号：
+时：
+
+```python
+for document in documents:
+```
+
+循环执行 0 次。
+
+`all_chunks` 初始值为：
+
+```python
+[]
+```
+
+因此函数最终自然返回：
+
+```python
+[]
+```
+
+这属于边界场景，而不是异常场景。
+
+## chunk_index 的编号范围
+
+假设文档 A 和文档 B 都切出两个 Chunk：
 
 ```text
 文档 A：
-chunk_index = ______
-chunk_index = ______
+chunk_index = 0
+chunk_index = 1
 
 文档 B：
-chunk_index = ______
-chunk_index = ______
+chunk_index = 0
+chunk_index = 1
 ```
 
-回答：
+`chunk_index` 不是整个知识库的全局编号。
 
-1. `chunk_index` 是整个知识库的全局编号吗？
-2. 为什么每篇文档都应该重新从 0 开始？
-3. 不同文档之间依靠哪个 Metadata 字段区分？
+它表示：
+
+```text
+当前 Chunk 在所属原文中的位置
+```
+
+每次调用：
+
+```python
+split_document()
+```
+
+函数内部都会重新执行：
+
+```python
+chunk_index = 0
+```
+
+所以每篇文档都会重新编号。
+
+不同文档通过：
+
+```python
+chunk["metadata"]["source"]
+```
+
+区分。
+
+唯一定位一个 Chunk 时，可以结合：
+
+```text
+source + chunk_index
+```
+
+例如：
+
+```text
+docs_raw/a.md + 0
+docs_raw/a.md + 1
+docs_raw/b.md + 0
+```
 
 ## 顺序保证
 
-回答：
+`split_documents()` 按照 `documents` 的原始顺序遍历。
 
-1. `split_documents()` 是否保持 `documents` 的原始顺序？
-2. 是否保持每篇文档内部 Chunk 的顺序？
-3. 如果先遍历文档 A，再遍历文档 B，最终列表中谁的 Chunk 在前？
-4. 这种顺序为什么有助于调试和来源追踪？
+同时，`split_document()` 保持每篇文档内部的 Chunk 顺序。
+
+因此：
+
+```text
+先处理文档 A
+→ 输出文档 A 的全部 Chunk
+
+再处理文档 B
+→ 输出文档 B 的全部 Chunk
+```
+
+最终顺序：
+
+```python
+[
+    chunk_a_0,
+    chunk_a_1,
+    chunk_b_0,
+]
+```
+
+稳定顺序有利于：
+
+- 测试；
+- 调试；
+- 来源追踪；
+- 结果比较；
+- 后续定位切分错误。
 
 ## 批量切分测试
 
@@ -333,7 +639,7 @@ documents = [
 ]
 ```
 
-调用参数：
+调用：
 
 ```python
 batch_chunks = split_documents(
@@ -343,202 +649,360 @@ batch_chunks = split_documents(
 )
 ```
 
-请自行计算：
+步长：
 
-1. `step` 等于多少？
-2. 文档 A 会产生几个 Chunk？
-3. 文档 A 每个 Chunk 的正文是什么？
-4. 文档 B 会产生几个 Chunk？
-5. `batch_chunks` 总长度是多少？
-6. 所有 Chunk 的正文顺序是什么？
-7. 所有 Chunk 的 `source` 顺序是什么？
-8. 所有 Chunk 的 `chunk_index` 顺序是什么？
+```text
+step = 6 - 2 = 4
+```
 
-## 测试覆盖内容
+文档 A：
 
-### 总数量测试
+```text
+正文：abcdefghij
 
-回答：
+Chunk 0：
+abcdef
 
-1. 为什么要检查 `len(batch_chunks)`？
-2. 数量不正确可能说明哪些逻辑有问题？
+Chunk 1：
+efghij
+```
 
-### 扁平列表测试
+文档 B 长度小于 `chunk_size`，因此只生成一个 Chunk：
 
-测试：
+```text
+Chunk 0：
+12345
+```
+
+最终正文顺序：
+
+```python
+[
+    "abcdef",
+    "efghij",
+    "12345",
+]
+```
+
+来源顺序：
+
+```python
+[
+    "a.md",
+    "a.md",
+    "b.md",
+]
+```
+
+编号顺序：
+
+```python
+[
+    0,
+    1,
+    0,
+]
+```
+
+总 Chunk 数量：
+
+```text
+3
+```
+
+## 测试内容
+
+### 总数量
+
+```python
+assert len(batch_chunks) == 3
+```
+
+验证所有文档产生的 Chunk 数量是否正确。
+
+### 扁平列表
 
 ```python
 assert isinstance(batch_chunks[0], dict)
 ```
 
-回答：
+如果错误使用 `append()`，`batch_chunks[0]` 会是列表。
 
-1. 这条测试主要检查什么？
-2. 如果错误使用 `append()`，`batch_chunks[0]` 会是什么类型？
+这条测试可以帮助发现嵌套列表问题。
 
-### 正文和顺序测试
-
-回答：
-
-1. 为什么不能只检查总数量？
-2. 为什么还需要检查每个 Chunk 的正文？
-3. 为什么正文顺序也必须验证？
-
-### source 继承测试
-
-回答：
-
-1. 为什么每个 Chunk 都需要保留 `source`？
-2. `source` 对后续检索和来源追踪有什么作用？
-
-### chunk_index 测试
-
-回答：
-
-1. 为什么第二篇文档的编号不能接着第一篇继续？
-2. 测试如何证明每篇文档内部重新编号？
-
-### 原始 Metadata 独立性测试
-
-测试目标：
+### 正文与顺序
 
 ```python
-"chunk_index" not in documents[0]["metadata"]
-"chunk_index" not in documents[1]["metadata"]
+assert [
+    chunk["content"]
+    for chunk in batch_chunks
+] == [
+    "abcdef",
+    "efghij",
+    "12345",
+]
 ```
 
-回答：
+不仅验证数量，也验证：
 
-1. 这两条测试在验证什么？
-2. 如果原始 Metadata 被修改，可能是哪一行代码写错了？
+- 切分内容；
+- overlap；
+- 文档顺序；
+- Chunk 顺序。
 
-### 空列表测试
+### source 继承
 
-回答：
+```python
+assert [
+    chunk["metadata"]["source"]
+    for chunk in batch_chunks
+] == [
+    "a.md",
+    "a.md",
+    "b.md",
+]
+```
 
-1. 为什么要测试空 `documents`？
-2. 预期返回值是什么？
-3. 这属于正常场景、边界场景还是异常场景？
+验证每个 Chunk 都保留所属原文来源。
 
-## 今天实际验证结果
+### chunk_index
 
-请填写终端运行命令：
+```python
+assert [
+    chunk["metadata"]["chunk_index"]
+    for chunk in batch_chunks
+] == [
+    0,
+    1,
+    0,
+]
+```
+
+验证每篇文档内部重新从 0 编号。
+
+### 原始 Metadata 独立性
+
+```python
+assert "chunk_index" not in documents[0]["metadata"]
+assert "chunk_index" not in documents[1]["metadata"]
+```
+
+验证 Chunker 没有修改原始 Document 的 Metadata。
+
+如果测试失败，可能错误使用了：
+
+```python
+chunk_metadata = metadata
+```
+
+而不是：
+
+```python
+chunk_metadata = metadata.copy()
+```
+
+### 空列表
+
+```python
+empty_batch_chunks = split_documents(
+    [],
+    chunk_size=6,
+    chunk_overlap=2,
+)
+
+assert empty_batch_chunks == []
+```
+
+验证空 Documents 列表能够自然返回空 Chunk 列表。
+
+## 实际运行
+
+运行命令：
 
 ```bash
-# 待填写
+python src/test_chunker.py
 ```
 
-请记录运行结果：
+实际结果：
 
 ```text
-# 待填写
+所有文本切分测试通过
+真实文档标题：LeetCode Day 5 两数之和
+真实文档长度：656
+真实 Chunk 数量：2
+所有批量文本切分测试通过
 ```
 
-回答：
+程序没有出现：
 
-1. 原有单文档切分测试是否通过？
-2. 真实 Markdown 集成测试是否通过？
-3. 新增批量切分测试是否通过？
-4. 是否出现 Traceback 或 AssertionError？
+```text
+Traceback
+AssertionError
+```
+
+说明：
+
+- Day 8 单文档测试仍然通过；
+- 真实 Markdown 集成测试仍然通过；
+- Day 9 批量切分测试通过；
+- 新功能没有破坏旧功能。
 
 ## 当前完整数据流
 
-补全：
-
 ```text
 docs_raw/*.md
-→ __________________
+→ load_markdown_directory()
 → Documents 列表
-→ __________________
+→ split_documents()
+→ 遍历每个 Document
+→ split_document()
+→ 当前文档的 Chunks
+→ extend()
 → 全部 Chunks
 ```
 
-展开补全：
+展开流程：
 
 ```text
 Markdown 文件
 → 读取原始文本
-→ __________________
-→ YAML 解析
-→ __________________
+→ 分离 YAML Front Matter 与正文
+→ yaml.safe_load()
+→ validate_metadata()
 → 添加 source 和 file_type
 → Document
-→ __________________
+→ 汇总为 Documents
+→ split_documents()
+→ split_document()
+→ 切分 content
+→ 复制 Metadata
+→ 添加 chunk_index
 → Chunk
 → 汇总为全部 Chunks
 ```
 
 ## 模块职责
 
-请分别用一句话回答。
+### Loader
+
+负责读取 Markdown 文件，调用 Parser 分离 YAML 与正文，调用 Validator 校验 Metadata，补充 `source` 和 `file_type`，最终返回 Document。
+
+### Parser
+
+负责分离 YAML Front Matter 与 Markdown 正文，并使用 `yaml.safe_load()` 解析 YAML。
+
+### Validator
+
+负责检查 Metadata 是否为字典、必需字段是否存在，以及 `status`、`tags` 等字段是否合法。
+
+### split_document()
+
+负责将一篇 Document 的 `content` 切分为多个 Chunk，并让每个 Chunk 继承 Metadata、增加 `chunk_index`。
+
+### split_documents()
+
+负责遍历多个 Documents，复用 `split_document()`，并使用 `extend()` 汇总为一个扁平的 Chunk 列表。
+
+## 测试设计思路
+
+测试一个函数时，需要从多个角度检查。
+
+### 正常场景
+
+使用最普通的合法输入，验证：
+
+- 数量；
+- 内容；
+- 顺序；
+- Metadata；
+- 返回结构。
+
+### 边界场景
+
+例如：
+
+- 空 Documents 列表；
+- 只有一个 Document；
+- 正文小于 `chunk_size`；
+- 正文刚好等于 `chunk_size`；
+- 空正文。
+
+### 异常场景
+
+例如：
+
+- `chunk_size <= 0`；
+- `chunk_overlap < 0`；
+- `chunk_overlap >= chunk_size`。
+
+这些参数校验仍然由 `split_document()` 负责。
+
+### 数据完整性
+
+检查：
+
+- 原始 Metadata 是否被修改；
+- `source` 是否保留；
+- `chunk_index` 是否正确；
+- 输出顺序是否稳定。
+
+### 输出结构
+
+检查返回值是否为：
 
 ```text
-Loader：
+list[dict]
+```
 
-Parser：
+而不是：
 
-Validator：
-
-split_document()：
-
-split_documents()：
+```text
+list[list[dict]]
 ```
 
 ## 当前边界
 
-回答：
+Day 9 已经完成：
 
-1. 当前切分依据是字符数还是 Token 数？
-2. 当前是否能保护 Markdown 标题？
-3. 当前是否能避免切断代码块？
-4. 当前是否已经生成 Embedding？
-5. 当前是否已经接入 ChromaDB？
-6. 当前是否已经实现相似度检索？
-7. 下一阶段最可能连接哪个模块？
+```text
+多个 Documents
+→ 全部 Chunks
+```
 
-## 测试设计方法
+但当前仍然只是字符级固定长度切分。
 
-针对一个新函数，尝试从以下方向设计测试。
+尚未实现：
 
-### 正常场景
+- 对整个真实 `docs_raw/` 进行统一统计；
+- Token 级切分；
+- Markdown 标题感知；
+- 代码块保护；
+- 表格保护；
+- Embedding；
+- ChromaDB；
+- 相似度检索；
+- Prompt 构造；
+- Ollama 问答；
+- 来源返回。
 
-1. 最普通的合法输入是什么？
-2. 预期输出的数量、内容和顺序是什么？
+## 面试时怎么讲
 
-### 边界场景
+我先实现了单文档切分函数 `split_document()`，随后增加 `split_documents()` 支持批量处理多个 Document。
 
-1. 空列表应该怎样处理？
-2. 单元素列表应该怎样处理？
-3. 正文刚好等于 `chunk_size` 时会怎样？
-4. 正文小于 `chunk_size` 时会怎样？
+批量函数不重新实现滑动窗口，而是遍历 Documents 并复用 `split_document()`，这样参数校验和切分规则只需要维护一份。
 
-### 异常场景
+每篇文档产生的 Chunk 使用 `extend()` 合并到总列表中，从而保证返回值是 `list[dict]`，而不是嵌套的 `list[list[dict]]`。
 
-1. 哪些参数应该被拒绝？
-2. 预期抛出什么异常？
-3. 异常由批量函数处理，还是由单文档函数处理？
+每次调用 `split_document()` 时，`chunk_index` 都从 0 开始，因此编号表示 Chunk 在所属原文中的位置。不同原文通过 Metadata 中的 `source` 区分。
 
-### 数据完整性
+我通过总数量、正文顺序、来源继承、编号重置、Metadata 独立性、空列表和输出结构等测试，验证了批量切分功能，并确认新增功能没有破坏原有单文档切分。
 
-1. 原始输入有没有被意外修改？
-2. Metadata 是否被正确继承？
-3. 来源和编号是否正确？
+## 后续计划
 
-### 输出结构
-
-1. 返回的是字典、列表还是嵌套列表？
-2. 是否符合函数类型标注？
-3. 后续模块能否直接使用？
-
-## 下次开始前复习问题
-
-1. `split_document()` 与 `split_documents()` 的职责有什么区别？
-2. `documents`、`document`、`document_chunks`、`all_chunks` 分别是什么？
-3. 为什么使用 `extend()` 而不是 `append()`？
-4. 空 `documents` 为什么可以自然返回 `[]`？
-5. 为什么每篇文档的 `chunk_index` 都重新从 0 开始？
-6. 不同文档的 Chunk 通过什么字段区分？
-7. 批量切分测试验证了哪几个方面？
-8. 当前从 Markdown 到全部 Chunks 的完整数据流是什么？
-9. Loader、Validator、Chunker 分别负责什么？
-10. 下一阶段为什么还不能直接回答用户问题？
+- 加载整个 `docs_raw/`；
+- 批量切分所有真实 Document；
+- 输出 Document 总数和 Chunk 总数；
+- 按 `source` 统计每篇文档的 Chunk 数量；
+- 验证所有来源统计之和等于总 Chunk 数；
+- 完成 Loader 到 Chunker 的真实知识库数据管线；
+- 后续进入 Embedding 和 ChromaDB。
