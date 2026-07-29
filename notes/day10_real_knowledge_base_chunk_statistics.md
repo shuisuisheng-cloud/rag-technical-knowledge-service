@@ -12,82 +12,127 @@ tags: [Python, RAG, MarkdownLoader, Chunking, BatchProcessing, Statistics, Metad
 
 ## 今日目标
 
-1. 如何加载 `docs_raw/` 中的全部真实 Markdown 文档？
-2. 如何把全部 Documents 批量切分为 Chunks？
-3. 如何统计 Document 总数和 Chunk 总数？
-4. 如何统计每个 `source` 产生的 Chunk 数量？
-5. 如何验证统计结果没有遗漏或重复？
-6. 当前从原始文档到全部 Chunk 的完整数据流是什么？
+将 `docs_raw/` 中的全部真实 Markdown 文档加载并批量切分，完成：
 
-## Day 9 回顾
+```text
+docs_raw/*.md
+→ Documents
+→ Chunks
+→ 按 source 统计每篇文档的 Chunk 数量
+```
 
-### split_document()
+同时验证：
 
-回答：
-
-1. `split_document()` 的输入是什么？
-2. `split_document()` 的输出是什么？
-3. 它是否负责读取 Markdown 文件？
-4. 它真正切分的是 Document 中的哪个字段？
-5. 每个 Chunk 如何继承原文 Metadata？
-6. `chunk_index` 表示什么？
-
-### split_documents()
-
-回答：
-
-1. `split_documents()` 的输入是什么？
-2. 它为什么需要复用 `split_document()`？
-3. `document_chunks` 表示什么？
-4. `all_chunks` 表示什么？
-5. 为什么使用 `extend()` 而不是 `append()`？
-6. 最终返回的是扁平列表还是嵌套列表？
+- Documents 不为空；
+- Chunks 不为空；
+- 所有 Chunk 都包含 `source`；
+- 所有 Chunk 都包含 `chunk_index`；
+- 各来源的 Chunk 数量之和等于 Chunk 总数。
 
 ## 当前 Document 结构
 
-请补全：
-
 ```python
 document = {
-    # 待填写
+    "content": "完整 Markdown 正文",
+    "metadata": {
+        "title": "文档标题",
+        "project": "所属项目",
+        "system_layer": "系统层级",
+        "document_type": "文档类型",
+        "status": "completed",
+        "last_updated": "2026-07-20",
+        "tags": ["Python", "RAG"],
+        "source": "docs_raw/example.md",
+        "file_type": "markdown",
+    },
 }
 ```
 
-回答：
+Document 最外层包含：
 
-1. Document 最外层有哪些字段？
-2. `content` 是什么类型？
-3. `metadata` 是什么类型？
-4. `source` 位于哪一层？
-5. `file_type` 位于哪一层？
+```text
+content
+metadata
+```
+
+其中：
+
+```text
+content
+→ str
+→ 保存完整正文
+
+metadata
+→ dict
+→ 保存标题、项目、状态、标签和来源等结构化信息
+```
+
+`source` 和 `file_type` 位于：
+
+```python
+document["metadata"]
+```
 
 ## 当前 Chunk 结构
 
-请补全：
-
 ```python
 chunk = {
-    # 待填写
+    "content": "切分后的正文片段",
+    "metadata": {
+        "title": "原文标题",
+        "source": "docs_raw/example.md",
+        "file_type": "markdown",
+        "chunk_index": 0,
+    },
 }
 ```
 
-回答：
+Document 和 Chunk 都有：
 
-1. Chunk 与 Document 有哪些共同字段？
-2. Chunk 正文与 Document 正文有什么区别？
-3. Chunk Metadata 比原文 Metadata 多了哪个字段？
-4. 如何唯一定位一篇文档中的某个 Chunk？
+```text
+content
+metadata
+```
+
+区别是：
+
+```text
+Document content
+→ 一篇文档的完整正文
+
+Chunk content
+→ 从完整正文中切分出的局部片段
+```
+
+Chunk Metadata 在继承原文 Metadata 的基础上新增：
+
+```text
+chunk_index
+```
+
+一个 Chunk 可以通过下面的组合定位：
+
+```text
+source + chunk_index
+```
 
 ## main.py 的职责
 
-Day 10 在 `src/main.py` 中完成真实知识库数据管线验证。
+`main.py` 当前是项目的数据管线集成验证入口。
 
-回答：
+它不负责重新实现：
 
-1. `main.py` 是否负责实现 Markdown 解析算法？
-2. `main.py` 是否负责实现滑动窗口切分算法？
-3. `main.py` 主要负责调用和组织哪些模块？
-4. 为什么说 `main.py` 当前属于集成验证入口？
+- Markdown 解析；
+- Metadata 校验；
+- 滑动窗口切分。
+
+它负责组织已有模块：
+
+```text
+load_markdown_directory()
+→ split_documents()
+→ 统计和验证
+```
 
 ## 切分参数
 
@@ -98,31 +143,31 @@ chunk_size = 500
 chunk_overlap = 100
 ```
 
-回答：
+步长：
 
-1. `chunk_size` 表示什么？
-2. `chunk_overlap` 表示什么？
-3. 当前步长是多少？
-4. 相邻两个 Chunk 会重复多少个字符？
-5. 当前按字符数量切分还是按 Token 数量切分？
+```text
+step = chunk_size - chunk_overlap
+     = 500 - 100
+     = 400
+```
 
-## 目录路径
+含义：
 
-当前目录：
+```text
+每个 Chunk 最多 500 个字符
+下一块向后移动 400 个字符
+相邻 Chunk 重叠 100 个字符
+```
+
+当前是字符级切分，不是 Token 级切分。
+
+## 加载真实知识库
+
+目录路径：
 
 ```python
 directory_path = "docs_raw"
 ```
-
-回答：
-
-1. 这个路径传给哪个函数？
-2. 这个函数返回什么数据结构？
-3. 目录不存在时应该由哪个模块处理？
-4. 路径存在但不是目录时应该如何处理？
-5. 为什么这些检查不应该全部写在 `main.py` 中？
-
-## 加载全部 Documents
 
 调用：
 
@@ -130,15 +175,71 @@ directory_path = "docs_raw"
 documents = load_markdown_directory(directory_path)
 ```
 
-回答：
+返回类型：
 
-1. `documents` 的类型是什么？
-2. 列表中每一个元素是什么？
-3. `load_markdown_directory()` 内部会遍历什么？
-4. 每个 Markdown 文件由哪个函数加载？
-5. 每个 Document 在返回前经过哪些处理？
+```text
+list[dict]
+```
 
-## 批量切分全部 Documents
+其中每个元素都是一个 Document。
+
+完整加载流程：
+
+```text
+docs_raw/
+→ 检查目录是否存在
+→ 检查路径是否为目录
+→ 查找所有 *.md
+→ 按文件名排序
+→ 逐个调用 load_markdown()
+→ 返回 Documents 列表
+```
+
+## 单文件加载流程
+
+```text
+Markdown 文件路径
+→ 检查文件是否存在
+→ 检查路径是否为文件
+→ 以 UTF-8 读取原始文本
+→ parse_markdown_content()
+→ 分离 YAML Front Matter 和正文
+→ yaml.safe_load()
+→ validate_metadata()
+→ 添加 source 和 file_type
+→ 返回 Document
+```
+
+## Parser 与 Validator
+
+### parse_markdown_content()
+
+负责：
+
+```text
+接收完整 Markdown 原始文本
+→ 分离 YAML Front Matter 和正文
+→ 使用 yaml.safe_load() 解析 YAML
+→ 返回 content 和 parsed_metadata
+```
+
+### validate_metadata()
+
+负责：
+
+```text
+检查 YAML 解析结果是不是 dict
+→ 检查必需字段是否存在
+→ 检查 status 是否在允许范围内
+→ 检查 tags 是否为 list
+→ 返回合法 Metadata
+```
+
+Parser 负责解析。
+
+Validator 负责校验。
+
+## 批量切分
 
 调用：
 
@@ -150,32 +251,112 @@ chunks = split_documents(
 )
 ```
 
-回答：
+`split_documents()` 的流程：
 
-1. `chunks` 的类型是什么？
-2. 列表中的每个元素是什么？
-3. `split_documents()` 内部调用哪个函数？
-4. 不同文档的 Chunk 如何区分？
-5. 同一篇文档内部如何表示 Chunk 顺序？
+```text
+接收 Documents
+→ 遍历每个 Document
+→ 调用 split_document()
+→ 得到当前文档的 document_chunks
+→ 使用 extend() 合并
+→ 返回扁平的 Chunks 列表
+```
+
+`split_document()` 的流程：
+
+```text
+接收一个 Document
+→ 校验 chunk_size 和 chunk_overlap
+→ 读取 content 和 metadata
+→ 使用滑动窗口切分 content
+→ 为每块复制 Metadata
+→ 添加 chunk_index
+→ 返回当前文档的 Chunk 列表
+```
+
+## append() 与 extend()
+
+假设：
+
+```python
+document_chunks = [
+    chunk_1,
+    chunk_2,
+]
+```
+
+使用：
+
+```python
+all_chunks.append(document_chunks)
+```
+
+会得到：
+
+```python
+[
+    [chunk_1, chunk_2],
+]
+```
+
+返回结构是：
+
+```text
+list[list[dict]]
+```
+
+使用：
+
+```python
+all_chunks.extend(document_chunks)
+```
+
+会得到：
+
+```python
+[
+    chunk_1,
+    chunk_2,
+]
+```
+
+返回结构是：
+
+```text
+list[dict]
+```
+
+项目后续需要直接遍历每个 Chunk，因此使用 `extend()`。
 
 ## 总数统计
 
-程序输出：
-
-```text
-文档总数：________
-Chunk 总数：________
+```python
+print("Chunk总数：", len(chunks))
+print("文档总数：", len(documents))
 ```
 
-请填写本次真实运行结果。
+本次真实运行结果：
 
-回答：
+```text
+文档总数：25
+Chunk 总数：183
+```
 
-1. Document 总数如何计算？
-2. Chunk 总数如何计算？
-3. 为什么两个总数都应该大于 0？
-4. Chunk 总数为什么通常大于 Document 总数？
-5. 哪些因素会影响 Chunk 总数？
+说明：
+
+```text
+25 篇真实 Markdown 文档
+→ 经过字符级重叠切分
+→ 生成 183 个 Chunk
+```
+
+Chunk 数量受以下因素影响：
+
+- 文档正文长度；
+- `chunk_size`；
+- `chunk_overlap`；
+- 文档是否为空；
+- 切分结束条件。
 
 ## 按来源统计 Chunk 数量
 
@@ -185,158 +366,169 @@ Chunk 总数：________
 chunk_count_by_source = {}
 ```
 
-回答：
+结构：
 
-1. 字典的键是什么？
-2. 字典的值是什么？
-3. 为什么使用 `source` 作为键？
-4. 一篇文档为什么可能对应多个 Chunk？
-5. 这个字典最终表达什么信息？
+```text
+key
+→ source
+→ 原始 Markdown 文件路径
 
-## 遍历全部 Chunk
+value
+→ count
+→ 当前来源生成的 Chunk 数量
+```
 
-核心循环：
+示例：
+
+```python
+{
+    "docs_raw/a.md": 2,
+    "docs_raw/b.md": 5,
+}
+```
+
+## dict.get()
+
+遍历每个 Chunk：
 
 ```python
 for chunk in chunks:
     source = chunk["metadata"]["source"]
+
+    current_count = (
+        chunk_count_by_source.get(source, 0) + 1
+    )
+
+    chunk_count_by_source[source] = current_count
 ```
 
-回答：
+`get(source, 0)` 的含义：
 
-1. `chunk` 是什么类型？
-2. 为什么需要从 Metadata 中读取 `source`？
-3. 为什么不能只根据 `chunk_index` 区分所有 Chunk？
-4. 如果某个 Chunk 没有 `source`，后续会出现什么问题？
+```text
+source 已存在
+→ 返回当前数量
 
-## dict.get()
+source 不存在
+→ 返回默认值 0
+```
 
-统计时使用：
+再加 1，表示发现一个属于该来源的新 Chunk。
+
+这种写法不需要提前写：
 
 ```python
-current_count = chunk_count_by_source.get(source, 0) + 1
+if source in chunk_count_by_source:
 ```
 
-回答：
-
-1. `get(source, 0)` 的作用是什么？
-2. 当 `source` 第一次出现时返回什么？
-3. 当 `source` 已存在时返回什么？
-4. 为什么需要在结果后加 1？
-5. 为什么这种写法可以避免提前判断键是否存在？
-
-## 写回统计结果
-
-调用：
-
-```python
-chunk_count_by_source[source] = current_count
-```
-
-回答：
-
-1. 当 `source` 第一次出现时，这句会做什么？
-2. 当 `source` 已经存在时，这句会做什么？
-3. 为什么必须把更新后的数量写回字典？
-
-## 字典 items() 与元组拆包
-
-调用：
+## items() 与元组拆包
 
 ```python
 chunk_count_by_source.items()
 ```
 
-回答：
-
-1. `items()` 中的每一个元素是什么结构？
-2. 为什么直接 `print(data)` 会出现括号？
-3. 括号中的两个值分别是什么？
-4. 如何使用元组拆包分别得到 `source` 和 `count`？
-
-请补全：
+每次产生一个二元组：
 
 ```python
-for ________, ________ in chunk_count_by_source.items():
-    ...
+(source, count)
 ```
+
+如果直接：
+
+```python
+for data in chunk_count_by_source.items():
+    print(data)
+```
+
+会输出：
+
+```text
+('docs_raw/example.md', 3)
+```
+
+因为 `data` 是一个元组。
+
+使用元组拆包：
+
+```python
+for source, count in chunk_count_by_source.items():
+    print(source, count)
+```
+
+可以分别取得来源和数量。
 
 ## 排序输出
 
-当前使用：
+最终代码：
 
 ```python
-sorted(chunk_count_by_source.items())
+for source, count in sorted(
+    chunk_count_by_source.items()
+):
+    print(f"{source} -> {count} chunks")
 ```
 
-回答：
+`sorted()` 让输出顺序稳定，便于：
 
-1. 为什么需要排序？
-2. 如果不排序，统计结果是否一定错误？
-3. 排序对测试和调试有什么帮助？
-4. 当前默认按照元组中的哪个值排序？
+- 阅读；
+- 调试；
+- 对比前后运行结果；
+- 发现新增或遗漏文件。
 
-## 输出格式
+当前默认根据元组的第一个元素 `source` 排序。
 
-目标输出：
+## 统计一致性验证
+
+```python
+assert (
+    sum(chunk_count_by_source.values())
+    == len(chunks)
+)
+```
+
+其中：
 
 ```text
-docs_raw/example.md -> 3 chunks
+chunk_count_by_source.values()
+→ 每篇文档的 Chunk 数量
+
+sum(...)
+→ 所有来源数量之和
+
+len(chunks)
+→ 实际全部 Chunk 数量
 ```
 
-回答：
+两者相等说明：
 
-1. 如何通过 f-string 输出这种格式？
-2. 为什么这种格式比直接打印元组更容易阅读？
-3. `source` 和 `count` 分别对应输出中的哪一部分？
-
-## 统计一致性检查
-
-断言：
-
-```python
-assert sum(chunk_count_by_source.values()) == len(chunks)
+```text
+每个 Chunk 都被统计一次
+没有遗漏
+没有重复统计
 ```
 
-回答：
+本次运行没有出现 `AssertionError`，因此统计一致。
 
-1. `chunk_count_by_source.values()` 返回什么？
-2. `sum(...)` 计算的是什么？
-3. `len(chunks)` 计算的是什么？
-4. 两者相等能够证明什么？
-5. 如果两者不相等，可能出现了哪些问题？
-
-## Documents 非空检查
-
-断言：
+## 非空验证
 
 ```python
 assert len(documents) > 0
-```
-
-回答：
-
-1. 这条断言验证什么？
-2. 如果失败，可能是路径、文件还是 Loader 出现问题？
-3. 它属于功能实现还是集成验证？
-
-## Chunks 非空检查
-
-断言：
-
-```python
 assert len(chunks) > 0
 ```
 
-回答：
+分别验证：
 
-1. 这条断言验证什么？
-2. Documents 不为空但 Chunks 为空，可能是什么原因？
-3. 空正文是否可能影响结果？
+```text
+Loader 确实加载到了真实文档
+Chunker 确实产生了文本块
+```
 
-## source 完整性检查
+如果 Documents 不为空但 Chunks 为空，可能包括：
 
-断言：
+- 所有文档正文为空；
+- `split_documents()` 没有正确汇总；
+- `split_document()` 的结束逻辑错误。
+
+## source 完整性验证
 
 ```python
 assert all(
@@ -345,16 +537,21 @@ assert all(
 )
 ```
 
-回答：
+`all()` 会检查所有 Chunk。
 
-1. `all()` 的作用是什么？
-2. 生成式每次检查什么？
-3. 只要一个 Chunk 缺少 `source`，最终结果是什么？
-4. `source` 最初由哪个模块加入 Metadata？
+只要有一个 Chunk 缺少 `source`，结果就是 `False`，断言失败。
 
-## chunk_index 完整性检查
+`source` 由 Loader 根据真实文件路径添加。
 
-断言：
+它用于：
+
+- 来源追踪；
+- 按文档筛选；
+- 显示回答引用；
+- 定位错误文档；
+- 与 `chunk_index` 组合定位 Chunk。
+
+## chunk_index 完整性验证
 
 ```python
 assert all(
@@ -363,129 +560,152 @@ assert all(
 )
 ```
 
-回答：
+`chunk_index` 由 `split_document()` 添加。
 
-1. 这条断言验证什么？
-2. `chunk_index` 由哪个函数加入？
-3. 每篇文档的 `chunk_index` 是否全局连续？
-4. 不同文档中可以同时存在 `chunk_index = 0` 吗？
-
-## 本次真实运行结果
-
-请填写：
+它表示：
 
 ```text
-Document 总数：
-
-Chunk 总数：
-
-最长或 Chunk 数量最多的文档：
-
-每个来源统计之和是否等于 Chunk 总数：
-
-程序是否出现 Traceback：
-
-程序是否出现 AssertionError：
+当前 Chunk 在所属原文中的顺序
 ```
 
-## 当前真实数据流
+每篇文档都重新从 0 编号，因此不同文档可以同时存在：
 
-请补全：
+```text
+chunk_index = 0
+```
+
+不同文档依靠 `source` 区分。
+
+## 当前完整数据流
 
 ```text
 docs_raw/*.md
-→ ______________________________
+→ load_markdown_directory()
 → Documents
-→ ______________________________
+→ split_documents()
 → Chunks
-→ 按 ___________________________ 统计
+→ 按 source 统计
 → 输出每篇文档的 Chunk 数量
 ```
 
-## 展开的完整调用流程
-
-请补全：
+展开后：
 
 ```text
-docs_raw/
-→ load_markdown_directory()
-→ 遍历 Markdown 文件
-→ ______________________________
-→ 读取 UTF-8 原始文本
-→ ______________________________
-→ 分离 YAML Front Matter 和正文
+Markdown 文件
+→ UTF-8 读取
+→ parse_markdown_content()
+→ YAML Front Matter 与正文分离
 → yaml.safe_load()
-→ ______________________________
-→ 校验 Metadata
+→ validate_metadata()
 → 添加 source 和 file_type
 → Document
 → 汇总为 Documents
-→ ______________________________
-→ 遍历 Documents
-→ ______________________________
+→ split_documents()
+→ 遍历每个 Document
+→ split_document()
 → 切分 content
 → 复制 Metadata
 → 添加 chunk_index
 → Chunk
 → extend()
 → 全部 Chunks
+→ 按 source 统计
 ```
 
-## 模块职责复习
+## 模块职责
 
-请分别用一句话说明。
+### load_markdown_directory()
+
+负责发现目录中的 Markdown 文件，逐个调用 `load_markdown()`，返回 Documents 列表。
+
+### load_markdown()
+
+负责读取一个 Markdown 文件，组织 Parser、Validator 和 Loader Metadata，最终返回 Document。
+
+### parse_markdown_content()
+
+负责分离 YAML Front Matter 和正文，并解析 YAML。
+
+### validate_metadata()
+
+负责检查 Metadata 类型、必需字段及字段内容是否合法。
+
+### split_document()
+
+负责将一篇 Document 切分成多个 Chunk。
+
+### split_documents()
+
+负责遍历多个 Documents，复用 `split_document()` 并汇总全部 Chunks。
+
+### main()
+
+负责组织真实知识库加载、批量切分、统计和集成验证。
+
+## 为什么要检查文件和目录
+
+读取路径前需要检查：
 
 ```text
-load_markdown_directory()：
-
-load_markdown()：
-
-parse_markdown_content()：
-
-validate_metadata()：
-
-split_document()：
-
-split_documents()：
-
-main()：
+路径是否存在
+路径是文件还是目录
 ```
 
-## 为什么需要检查路径和文件
+原因是：
 
-回答：
+- 尽早发现配置或输入错误；
+- 避免在错误位置继续执行；
+- 给出明确、可定位的异常信息；
+- 防止把目录当文件读取；
+- 防止把普通文件当目录遍历。
 
-1. 为什么读取文件前需要检查路径是否存在？
-2. 为什么还需要检查路径是文件还是目录？
-3. 文件不存在时应该抛出什么类型的异常？
-4. 目录路径实际是普通文件时应该如何处理？
-5. 这些检查应该由调用者重复完成，还是由 Loader 统一完成？
-6. 检查的目的只是避免程序崩溃吗？
-7. 明确异常信息对调试有什么作用？
+常见方法：
 
-## 当前阶段的测试层次
+```python
+path.exists()
+path.is_file()
+path.is_dir()
+```
 
-回答：
+这些检查由 Loader 统一负责，而不是由每个调用者重复实现。
 
-1. `test_chunker.py` 主要属于单元测试还是集成测试？
-2. 使用真实 Markdown 的测试属于什么类型？
-3. `main.py` 当前更接近单元测试还是集成冒烟测试？
-4. 为什么不能只运行 `main.py` 而完全不写独立测试？
-5. 为什么新增功能后还要重新运行旧测试？
+忘记具体 API 不严重，重要的是理解：
+
+```text
+谁负责检查
+为什么检查
+失败后应该如何处理
+```
+
+## 当前测试层次
+
+```text
+test_metadata.py
+→ Metadata Validator 单元测试
+
+test_chunker.py
+→ 单文档和批量切分单元测试
+
+真实 Markdown 切分
+→ 小型集成测试
+
+main.py
+→ 整体数据管线冒烟测试
+```
+
+新增功能后仍需重新运行旧测试，防止新代码破坏已经完成的功能。
 
 ## 当前已完成能力
 
-请勾选实际完成的部分：
-
 ```text
-[ ] 单个 Markdown 文件读取
-[ ] YAML Front Matter 分离
-[ ] Metadata 校验
-[ ] 目录批量加载
-[ ] 单个 Document 切分
-[ ] 多个 Documents 批量切分
-[ ] 真实知识库整体切分
-[ ] 按 source 统计 Chunk 数量
+[x] 单个 Markdown 文件读取
+[x] YAML Front Matter 分离
+[x] Metadata 校验
+[x] 目录批量加载
+[x] 单个 Document 切分
+[x] 多个 Documents 批量切分
+[x] 真实知识库整体切分
+[x] 按 source 统计 Chunk 数量
 [ ] Embedding
 [ ] ChromaDB
 [ ] 相似度检索
@@ -495,36 +715,50 @@ main()：
 
 ## 当前边界
 
-回答：
+目前已经完成：
 
-1. 当前是否已经生成向量？
-2. 当前是否已经将 Chunk 存入数据库？
-3. 当前是否能接收用户问题？
-4. 当前是否能检索相关 Chunk？
-5. 当前是否能调用 Ollama 生成答案？
-6. 当前统计结果是否代表检索质量？
-7. 字符级切分有哪些局限？
+```text
+文件
+→ Document
+→ Chunk
+```
 
-## 面试复述
+尚未完成：
 
-尝试不看代码回答：
+```text
+Chunk
+→ Embedding 向量
+→ ChromaDB
+→ 相似度检索
+→ Prompt
+→ Ollama
+→ Answer + Sources
+```
 
-1. 你如何把 25 篇 Markdown 文档转换成 183 个 Chunk？
-2. Loader、Validator 和 Chunker 分别负责什么？
-3. 为什么要按 `source` 统计 Chunk 数？
-4. 如何验证统计没有遗漏？
-5. 为什么每个 Chunk 必须保留 `source` 和 `chunk_index`？
-6. 当前数据管线距离真正的 RAG 问答还缺什么？
+当前 Chunk 数量统计只能证明数据管线正常，不能证明：
 
-## 下次开始前复习问题
+- 切分质量足够好；
+- 检索结果准确；
+- 回答质量优秀；
+- Embedding 模型适合技术文档。
 
-1. 从 `docs_raw/` 到全部 Chunks 的完整调用链是什么？
-2. `documents` 和 `chunks` 分别是什么结构？
-3. `chunk_count_by_source` 的键和值分别是什么？
-4. `dict.get(source, 0)` 的作用是什么？
-5. `items()` 为什么可以拆包为 `source, count`？
-6. 为什么需要 `sorted()`？
-7. 统计数量之和为什么必须等于 `len(chunks)`？
-8. `all()` 的两个完整性断言分别验证什么？
-9. 当前已经完成 RAG 流程的哪一段？
-10. 下一阶段可能进入哪个模块？
+## 面试时怎么讲
+
+我首先通过目录 Loader 读取 `docs_raw/` 中的全部 Markdown 文件，解析 YAML Front Matter，校验 Metadata，并生成统一的 Document 结构。
+
+随后调用 `split_documents()`，逐个复用 `split_document()`，将 25 篇真实文档切分为 183 个 Chunk。
+
+每个 Chunk 都继承原文 Metadata，并包含 `source` 和 `chunk_index`。
+
+我使用字典按照 `source` 统计每篇文档产生的 Chunk 数量，并通过总数一致性、非空、来源完整性和编号完整性断言完成集成验证。
+
+当前已经完成从原始知识文档到结构化 Chunk 的数据管线，下一步是生成 Embedding 并写入向量数据库。
+
+## 后续计划
+
+- 了解 Embedding 的输入与输出；
+- 选择适合中文技术文档的 Embedding 模型；
+- 将 Chunk 正文转换为向量；
+- 将正文、向量和 Metadata 写入 ChromaDB；
+- 实现相似度检索；
+- 返回相关 Chunk 及原始来源。
