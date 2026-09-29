@@ -220,3 +220,7 @@ __marimo__/
 
 
 .vscode/
+
+
+# ChromaDB local persistent data
+data/chroma/
