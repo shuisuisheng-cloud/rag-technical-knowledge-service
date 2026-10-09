@@ -2,6 +2,7 @@ import chromadb
 from document_loader import load_markdown
 from text_chunker import split_document
 from embedding_service import embed_text,embed_texts
+
 def create_chromadb(collection_name:str):
     client=chromadb.PersistentClient(path="data/chroma")
     collection=client.get_or_create_collection(name=collection_name)
@@ -15,6 +16,29 @@ def prepare_metadata_for_chroma(metadata: dict) -> dict:
     if not isinstance(last_time,str):
         metadata_copy["last_updated"]=str(last_time)
     return metadata_copy
+def prepare_chunk_records(chunks: list[dict]):
+    ids=[]
+    documents=[]
+    metadatas=[]
+    for chunk in chunks:
+        chunk_id=build_chunk_id(chunk)
+        documents.append(chunk["content"])
+        metadatas.append(prepare_metadata_for_chroma(chunk["metadata"]))
+        ids.append(chunk_id)
+    return ids,documents,metadatas
+
+def filter_pending_records(ids: list[str],documents: list[str],metadatas: list[dict],existing_ids: set[str]):
+    if not len(ids)==len(documents)==len(metadatas):
+        raise ValueError("Record fields length mismatch")
+    pending_ids=[]
+    pending_documents=[]
+    pending_metadatas=[]
+    for index,chunk_id in enumerate(ids):
+        if chunk_id not in existing_ids:
+            pending_ids.append(chunk_id)
+            pending_documents.append(documents[index])
+            pending_metadatas.append(metadatas[index])
+    return pending_ids,pending_documents,pending_metadatas
 def add_real_chunk():
     document=load_markdown("docs_raw/linux_gateway_day60_full_system_integration.md")
     chunks=split_document(document,500,100)
@@ -68,14 +92,7 @@ def add_real_chunk():
 def prepare_document_records(path:str):
     document=load_markdown(path)
     chunks=split_document(document,500,100)
-    ids=[]
-    documents=[]
-    metadatas=[]
-    for chunk in chunks:
-        chunk_id=build_chunk_id(chunk)
-        ids.append(chunk_id)
-        documents.append(chunk["content"])
-        metadatas.append(prepare_metadata_for_chroma(chunk["metadata"]))
+    ids,documents,metadatas=prepare_chunk_records(chunks)
     embeddings=embed_texts(documents)
     return ids,documents,metadatas,embeddings
 
